@@ -44,7 +44,6 @@
 #include <netinet/icmp6.h>
 #include <fcntl.h>
 #include <pthread.h>
-#include <syslog.h>
 
 #include "server.h"
 #include "v4global.h"
@@ -500,15 +499,15 @@ teredo_server *teredo_server_create (uint32_t ip1, uint32_t ip2)
 
 	if (raw_fd == -1)
 	{
-		syslog (LOG_ERR, _("Raw IPv6 socket not working: %m"));
+		teredo_syslog (LOG_ERR, _("Raw IPv6 socket not working: %m"));
 		return NULL;
 	}
 
 	/* Initializes exclusive UDP/IPv4 sockets */
 	if (!is_ipv4_global_unicast (ip1) || !is_ipv4_global_unicast (ip2))
 	{
-		syslog (LOG_ERR, _("Teredo server UDP socket error: "
-		        "Server IPv4 addresses must be global unicast."));
+		teredo_syslog (LOG_ERR, _("Teredo server UDP socket error: "
+			       "Server IPv4 addresses must be global unicast."));
 		return NULL;
 	}
 
@@ -539,7 +538,7 @@ teredo_server *teredo_server_create (uint32_t ip1, uint32_t ip2)
 				char str[INET_ADDRSTRLEN];
 
 				inet_ntop (AF_INET, &ip2, str, sizeof (str));
-				syslog (LOG_ERR, _("Error (%s): %m"), str);
+				teredo_syslog (LOG_ERR, _("Error (%s): %m"), str);
 			}
 
 			teredo_close (s->fd_primary);
@@ -549,7 +548,7 @@ teredo_server *teredo_server_create (uint32_t ip1, uint32_t ip2)
 			char str[INET_ADDRSTRLEN];
 
 			inet_ntop (AF_INET, &ip1, str, sizeof (str));
-			syslog (LOG_ERR, _("Error (%s): %m"), str);
+			teredo_syslog (LOG_ERR, _("Error (%s): %m"), str);
 		}
 
 		free (s);

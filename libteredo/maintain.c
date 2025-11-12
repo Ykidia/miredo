@@ -40,7 +40,6 @@
 #include <netinet/in.h> /* struct in6_addr */
 #include <netinet/ip6.h> /* struct ip6_hdr */
 #include <netdb.h> /* getaddrinfo(), gai_strerror() */
-#include <syslog.h>
 #include <stdlib.h> /* malloc(), free() */
 #include <errno.h> /* EINTR */
 #include <pthread.h>
@@ -131,7 +130,7 @@ int teredo_maintenance_process (teredo_maintenance *restrict m,
 	/* TODO: fail instead of ignoring the packet? */
 	if (packet->auth_fail)
 	{
-		syslog (LOG_ERR, _("Authentication with server failed."));
+		teredo_syslog (LOG_ERR, _("Authentication with server failed."));
 		return EACCES;
 	}
 
@@ -171,7 +170,7 @@ checkTimeDrift (struct timespec *ts)
 	 || ((now.tv_sec == ts->tv_sec) && (now.tv_nsec > ts->tv_nsec)))
 	{
 		/* process stopped, CPU starved or system suspended */
-		syslog (LOG_WARNING, _("Too much time drift. Resynchronizing."));
+		teredo_syslog (LOG_WARNING, _("Too much time drift. Resynchronizing."));
 		*ts = now;
 		return false;
 	}
@@ -226,15 +225,15 @@ void maintenance_thread (teredo_maintenance *m)
 			if (val != 0)
 			{
 				/* DNS resolution failed */
-				syslog (LOG_ERR,
-				        _("Cannot resolve Teredo server address \"%s\": %s"),
-				        m->server, gai_strerror (val));
+				teredo_syslog (LOG_ERR,
+					       _("Cannot resolve Teredo server address \"%s\": %s"),
+					       m->server, gai_strerror (val));
 			}
 			else
 			if (!is_ipv4_global_unicast (server_ip))
 			{
-				syslog (LOG_ERR,
-				        _("Teredo server has a non global IPv4 address."));
+				teredo_syslog (LOG_ERR,
+					       _("Teredo server has a non global IPv4 address."));
 				server_ip = 0;
 			}
 			else
@@ -296,7 +295,7 @@ void maintenance_thread (teredo_maintenance *m)
 			 || !IN6_ARE_ADDR_EQUAL (&ostate.addr.ip6, &state->addr.ip6)
 			 || ostate.mtu != state->mtu)
 			{
-				syslog (LOG_NOTICE, _("New Teredo address/MTU"));
+				teredo_syslog (LOG_NOTICE, _("New Teredo address/MTU"));
 				m->state.cb (state, m->state.opaque);
 			}
 
@@ -313,13 +312,13 @@ void maintenance_thread (teredo_maintenance *m)
 				/* No response from server */
 				if (last_error != TERR_BLACKHOLE)
 				{
-					syslog (LOG_INFO, _("No reply from Teredo server"));
+					teredo_syslog (LOG_INFO, _("No reply from Teredo server"));
 					last_error = TERR_BLACKHOLE;
 				}
 
 				if (ostate.up)
 				{
-					syslog (LOG_NOTICE, _("Lost Teredo connectivity"));
+					teredo_syslog (LOG_NOTICE, _("Lost Teredo connectivity"));
 					m->state.cb (state, m->state.opaque);
 					m->server_ip = 0;
 				}
@@ -408,7 +407,7 @@ int teredo_maintenance_start (teredo_maintenance *m)
 	if (err != 0)
 	{
 		errno = err;
-		syslog (LOG_ALERT, _("Error (%s): %m"), "pthread_create");
+		teredo_syslog (LOG_ALERT, _("Error (%s): %m"), "pthread_create");
 		return -1;
 	}
 	return 0;

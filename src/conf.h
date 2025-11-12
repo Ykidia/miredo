@@ -47,4 +47,7 @@ bool miredo_conf_parse_IPv4 (miredo_conf *conf, const char *name,
 bool miredo_conf_parse_syslog_facility (miredo_conf *conf, const char *name,
                                         int *facility);
 
+bool miredo_conf_parse_syslog_level (miredo_conf *conf, const char *name,
+                                        int *level);
+
 #endif

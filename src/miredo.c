@@ -39,7 +39,6 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <syslog.h>
 #include <unistd.h> // uid_t
 #include <sys/wait.h> // waitpid()
 #ifdef HAVE_SYS_CAPABILITY_H
@@ -61,7 +60,7 @@ drop_privileges (void)
 	// Definitely drops privileges
 	if (setuid (unpriv_uid))
 	{
-		syslog (LOG_ALERT, _("Error (%s): %m"), "setuid");
+		miredo_syslog (LOG_ALERT, _("Error (%s): %m"), "setuid");
 		return -1;
 	}
 #ifdef HAVE_LIBCAP
@@ -76,6 +75,25 @@ drop_privileges (void)
 }
 
 
+int miredo_log_level = LOG_NOTICE;
+
+void miredo_syslog(const int priority, const char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+
+	miredo_vsyslog (priority, format, args);
+
+	va_end(args);
+}
+
+void miredo_vsyslog(const int priority, const char *format, va_list args)
+{
+	if (priority <= miredo_log_level)
+		vsyslog (priority, format, args);
+}
+
+
 /*
  * Configuration and respawning stuff
  */
@@ -83,7 +101,7 @@ static void logger (void *dummy, bool error, const char *fmt, va_list ap)
 {
 	(void)dummy;
 
-	vsyslog (error ? LOG_ERR : LOG_WARNING, fmt, ap);
+	miredo_vsyslog (error ? LOG_ERR : LOG_WARNING, fmt, ap);
 }
 
 
@@ -122,15 +140,18 @@ miredo (const char *confpath, const char *server_name, int pidfd)
 		retval = 1;
 
 		if (!miredo_conf_read_file (cnf, confpath))
-			syslog (LOG_WARNING, _("Loading configuration from %s failed"),
-			        confpath);
+			miredo_syslog (LOG_WARNING, _("Loading configuration from %s failed"),
+			               confpath);
 
 		miredo_conf_parse_syslog_facility (cnf, "SyslogFacility",
 		                                   &facility);
 
+		miredo_conf_parse_syslog_level (cnf, "SyslogLevel",
+		                                &miredo_log_level);
+
 		closelog ();
 		openlog (miredo_name, LOG_PID | LOG_PERROR, facility);
-		syslog (LOG_INFO, _("Starting..."));
+		miredo_syslog (LOG_INFO, _("Starting..."));
 
 		// Starts the main miredo process
 		pid_t pid = fork ();
@@ -138,7 +159,7 @@ miredo (const char *confpath, const char *server_name, int pidfd)
 		switch (pid)
 		{
 			case -1:
-				syslog (LOG_ALERT, _("Error (%s): %m"), "fork");
+				miredo_syslog (LOG_ALERT, _("Error (%s): %m"), "fork");
 				continue;
 
 			case 0:
@@ -166,16 +187,16 @@ miredo (const char *confpath, const char *server_name, int pidfd)
 
 			if (sigismember (&exit_set, signum))
 			{
-				syslog (LOG_NOTICE, _("Exiting on signal %d (%s)"),
-				        signum, strsignal (signum));
+				miredo_syslog (LOG_NOTICE, _("Exiting on signal %d (%s)"),
+				               signum, strsignal (signum));
 				retval = 0;
 			}
 			else
 			if (sigismember (&reload_set, signum))
 			{
-				syslog (LOG_NOTICE,
-				        _("Reloading configuration on signal %d (%s)"),
-				        signum, strsignal (signum));
+				miredo_syslog (LOG_NOTICE,
+				               _("Reloading configuration on signal %d (%s)"),
+				               signum, strsignal (signum));
 				retval = 2;
 			}
 			else
@@ -192,8 +213,8 @@ miredo (const char *confpath, const char *server_name, int pidfd)
 		if (WIFEXITED (status))
 		{
 			status = WEXITSTATUS (status);
-			syslog (LOG_NOTICE, _("Child %d exited (code: %d)"),
-			        (int)pid, status);
+			miredo_syslog (LOG_NOTICE, _("Child %d exited (code: %d)"),
+			               (int)pid, status);
 			if (status)
 				retval = 1;
 		}
@@ -201,8 +222,8 @@ miredo (const char *confpath, const char *server_name, int pidfd)
 		if (WIFSIGNALED (status))
 		{
 			status = WTERMSIG (status);
-			syslog (LOG_INFO, _("Child %d killed by signal %d (%s)"),
-			        (int)pid, status, strsignal (status));
+			miredo_syslog (LOG_INFO, _("Child %d killed by signal %d (%s)"),
+			               (int)pid, status, strsignal (status));
 			retval = 2;
 			sleep (1);
 		}
@@ -211,9 +232,9 @@ miredo (const char *confpath, const char *server_name, int pidfd)
 
 	miredo_conf_destroy (cnf);
 
-	syslog (LOG_INFO, gettext (retval
-		? N_("Terminated with error(s).")
-		: N_("Terminated with no error.")));
+	miredo_syslog (LOG_INFO, gettext (retval
+		       ? N_("Terminated with error(s).")
+		       : N_("Terminated with no error.")));
 
 	closelog ();
 	return -retval;

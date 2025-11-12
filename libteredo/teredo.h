@@ -33,12 +33,20 @@
 # endif
 
 # include <string.h>
+# include <stdarg.h>
+# include <syslog.h>
 
 /* UDP Teredo port number */
 #define IPPORT_TEREDO 3544
 
 /* Multicast IPv4 discovery address */
 #define TEREDO_DISCOVERY_IPV4	0xe00000fd
+
+
+extern void (*teredo_vsyslog_fn)(const int priority, const char *format, va_list);
+void teredo_init_log (void (*vsyslog_fn)(const int priority, const char *format, va_list));
+void teredo_syslog (const int priority, const char *format, ...);
+void teredo_vsyslog (const int priority, const char *format, va_list);
 
 /*
  * Teredo addresses

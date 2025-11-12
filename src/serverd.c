@@ -32,7 +32,6 @@
 
 #include <sys/types.h>
 #include <sys/select.h>
-#include <syslog.h>
 #include <signal.h> // sigemptyset()
 #include <pthread.h> // pthread_sigmask()
 #include <netdb.h> // gai_strerror()
@@ -63,8 +62,8 @@ server_run (miredo_conf *conf, const char *server_name)
 		int check = GetIPv4ByName (server_name, &server_ip);
 		if (check)
 		{
-			syslog (LOG_ALERT, _("Invalid server hostname \"%s\": %s"),
-			        server_name, gai_strerror (check));
+			miredo_syslog (LOG_ALERT, _("Invalid server hostname \"%s\": %s"),
+				       server_name, gai_strerror (check));
 			return -2;
 		}
 	}
@@ -73,15 +72,15 @@ server_run (miredo_conf *conf, const char *server_name)
 		if (!miredo_conf_parse_IPv4 (conf, "ServerBindAddress", &server_ip)
 		 || !miredo_conf_parse_IPv4 (conf, "ServerBindAddress2", &server_ip2))
 		{
-			syslog (LOG_ALERT, _("Fatal configuration error"));
+			miredo_syslog (LOG_ALERT, _("Fatal configuration error"));
 			return -2;
 		}
 	}
 
 	if (server_ip == INADDR_ANY)
 	{
-		syslog (LOG_ALERT, _("Server address not specified"));
-		syslog (LOG_ALERT, _("Fatal configuration error"));
+		miredo_syslog (LOG_ALERT, _("Server address not specified"));
+		miredo_syslog (LOG_ALERT, _("Fatal configuration error"));
 		return -2;
 	}
 
@@ -97,13 +96,14 @@ server_run (miredo_conf *conf, const char *server_name)
 
 	if (!miredo_conf_get_int16 (conf, "InterfaceMTU", &mtu, NULL))
 	{
-		syslog (LOG_ALERT, _("Fatal configuration error"));
+		miredo_syslog (LOG_ALERT, _("Fatal configuration error"));
 		return -2;
 	}
 
 	miredo_conf_clear (conf, 5);
 
 	// Sets up server (needs privileges to create raw socket)
+	teredo_init_log (miredo_vsyslog);
 	server = teredo_server_create (server_ip, server_ip2);
 
 	if (drop_privileges ())
@@ -133,8 +133,8 @@ server_run (miredo_conf *conf, const char *server_name)
 		teredo_server_destroy (server);
 	}
 
-	syslog (LOG_ALERT, _("Teredo server fatal error"));
-	syslog (LOG_NOTICE, _("Make sure another instance "
+	miredo_syslog (LOG_ALERT, _("Teredo server fatal error"));
+	miredo_syslog (LOG_NOTICE, _("Make sure another instance "
 	        "of the program is not already running."));
 	return -1;
 }

@@ -34,7 +34,6 @@
 #include <stdbool.h>
 
 #include <errno.h>
-#include <syslog.h>
 
 #include <sys/types.h>
 #include <sys/socket.h> // AF_INET, SOCK_DGRAM
@@ -505,6 +504,57 @@ bool miredo_conf_parse_syslog_facility (miredo_conf *conf, const char *name,
 	}
 
 	LogError (conf, _("Unknown syslog facility \"%s\" at line %u"), str,
+	          line);
+	free (str);
+	return false;
+}
+
+
+static const struct miredo_conf_syslog_level
+{
+	const char *str;
+	int level;
+} levels[] =
+{
+	{ "emerg",	LOG_EMERG },
+	{ "emergency",	LOG_EMERG },
+	{ "alert",	LOG_ALERT },
+	{ "crit",	LOG_CRIT },
+	{ "critical",	LOG_CRIT },
+	{ "err",	LOG_ERR },
+	{ "error",	LOG_ERR },
+	{ "warn",	LOG_WARNING },
+	{ "warning",	LOG_WARNING },
+	{ "notice",	LOG_NOTICE },
+	{ "info",	LOG_INFO },
+	{ "dbg",	LOG_DEBUG },
+	{ "debug",	LOG_DEBUG },
+	{ NULL,		0 }
+};
+
+
+/* TODO: make and use universal function to convert names to int */
+bool miredo_conf_parse_syslog_level (miredo_conf *conf, const char *name,
+                                     int *level)
+{
+	unsigned line;
+	char *str = miredo_conf_get (conf, name, &line);
+
+	if (str == NULL)
+		return true;
+
+	for (const struct miredo_conf_syslog_level *ptr = levels;
+	     ptr->str != NULL; ptr++)
+	{
+		if (!strcasecmp (str, ptr->str))
+		{
+			*level = ptr->level;
+			free (str);
+			return true;
+		}
+	}
+
+	LogError (conf, _("Unknown syslog level \"%s\" at line %u"), str,
 	          line);
 	free (str);
 	return false;

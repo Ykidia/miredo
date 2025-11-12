@@ -37,7 +37,6 @@
 #include <sys/wait.h> // wait()
 #include <signal.h> // sigemptyset()
 #include <spawn.h>
-#include <syslog.h>
 #include <pthread.h>
 
 #include <sys/socket.h>
@@ -170,8 +169,8 @@ ParseRelayType (miredo_conf *conf, const char *name, int *type)
 	else
 	if (strcasecmp (val, "restricted") == 0)
 	{
-		syslog (LOG_WARNING, _("Using deprecated \"restricted\" relay type "
-		        "which is STRONGLY DISCOURAGED (at line %u)."), line);
+		miredo_syslog (LOG_WARNING, _("Using deprecated \"restricted\" relay type "
+			       "which is STRONGLY DISCOURAGED (at line %u)."), line);
 		*type = TEREDO_RESTRICT;
 	}
 	else
@@ -180,8 +179,8 @@ ParseRelayType (miredo_conf *conf, const char *name, int *type)
 		*type = TEREDO_CONE;
 	else
 	{
-		syslog (LOG_ERR, _("Invalid relay type \"%s\" at line %u"),
-		        val, line);
+		miredo_syslog (LOG_ERR, _("Invalid relay type \"%s\" at line %u"),
+			       val, line);
 		free (val);
 		return false;
 	}
@@ -206,8 +205,8 @@ ParseLocalDiscovery (miredo_conf *conf, const char *name, bool *restrict on)
 		*on = false;
 	else
 	{
-		syslog (LOG_ERR, _("Invalid discovery mode \"%s\" at line %u"),
-			val, line);
+		miredo_syslog (LOG_ERR, _("Invalid discovery mode \"%s\" at line %u"),
+			       val, line);
 		free (val);
 		return false;
 	}
@@ -255,7 +254,7 @@ create_dynamic_tunnel (const char *ifname, int *pfd)
 	pid_t pid;
 	if (posix_spawn (&pid, path, &actions, NULL, argv, environ))
 	{
-		syslog (LOG_ERR, _("Could not execute %s: %m"), path);
+		miredo_syslog (LOG_ERR, _("Could not execute %s: %m"), path);
 		posix_spawn_file_actions_destroy (&actions);
 		goto error;
 	}
@@ -313,10 +312,10 @@ miredo_up_callback (void *data, const struct in6_addr *addr, uint16_t mtu)
 {
 	char str[INET6_ADDRSTRLEN];
 
-	syslog (LOG_NOTICE, _("Teredo pseudo-tunnel started"));
+	miredo_syslog (LOG_NOTICE, _("Teredo pseudo-tunnel started"));
 	if (inet_ntop (AF_INET6, addr, str, sizeof (str)) != NULL)
-		syslog (LOG_INFO, _(" (address: %s, MTU: %"PRIu16")"),
-		        str, mtu);
+		miredo_syslog (LOG_INFO, _(" (address: %s, MTU: %"PRIu16")"),
+			       str, mtu);
 
 	assert (data != NULL);
 
@@ -334,7 +333,7 @@ miredo_down_callback (void *data)
 
 	configure_tunnel (((miredo_tunnel *)data)->priv_fd, &in6addr_any,
 	                         1280);
-	syslog (LOG_NOTICE, _("Teredo pseudo-tunnel stopped"));
+	miredo_syslog (LOG_NOTICE, _("Teredo pseudo-tunnel stopped"));
 }
 
 
@@ -474,7 +473,7 @@ relay_run (miredo_conf *conf, const char *server_name)
 	int mode = TEREDO_CLIENT;
 	if (!ParseRelayType (conf, "RelayType", &mode))
 	{
-		syslog (LOG_ALERT, _("Fatal configuration error"));
+		miredo_syslog (LOG_ALERT, _("Fatal configuration error"));
 		return -2;
 	}
 
@@ -494,8 +493,8 @@ relay_run (miredo_conf *conf, const char *server_name)
 			char *name = miredo_conf_get (conf, "ServerAddress", NULL);
 			if (name == NULL)
 			{
-				syslog (LOG_ALERT, _("Server address not specified"));
-				syslog (LOG_ALERT, _("Fatal configuration error"));
+				miredo_syslog (LOG_ALERT, _("Server address not specified"));
+				miredo_syslog (LOG_ALERT, _("Fatal configuration error"));
 				return -2;
 			}
 			strlcpy (namebuf, name, sizeof (namebuf));
@@ -513,12 +512,12 @@ relay_run (miredo_conf *conf, const char *server_name)
 
 		if (!ParseLocalDiscovery (conf, "LocalDiscovery", &discovery))
 		{
-			syslog (LOG_ALERT, _("Fatal configuration error"));
+			miredo_syslog (LOG_ALERT, _("Fatal configuration error"));
 			return -2;
 		}
 #else
-		syslog (LOG_ALERT, _("Unsupported Teredo client mode"));
-		syslog (LOG_ALERT, _("Fatal configuration error"));
+		miredo_syslog (LOG_ALERT, _("Unsupported Teredo client mode"));
+		miredo_syslog (LOG_ALERT, _("Fatal configuration error"));
 		return -2;
 #endif
 	}
@@ -530,7 +529,7 @@ relay_run (miredo_conf *conf, const char *server_name)
 
 		if (!miredo_conf_get_int16 (conf, "InterfaceMTU", &mtu, NULL))
 		{
-			syslog (LOG_ALERT, _("Fatal configuration error"));
+			miredo_syslog (LOG_ALERT, _("Fatal configuration error"));
 			return -2;
 		}
 	}
@@ -554,7 +553,7 @@ relay_run (miredo_conf *conf, const char *server_name)
 	if (!miredo_conf_parse_IPv4 (conf, "BindAddress", &bind_ip)
 	 || !miredo_conf_get_int16 (conf, "BindPort", &bind_port, NULL))
 	{
-		syslog (LOG_ALERT, _("Fatal configuration error"));
+		miredo_syslog (LOG_ALERT, _("Fatal configuration error"));
 		return -2;
 	}
 
@@ -581,18 +580,19 @@ relay_run (miredo_conf *conf, const char *server_name)
 
 	if (tunnel == NULL)
 	{
-		syslog (LOG_ALERT, _("Miredo setup failure: %s"),
-		        _("Cannot create IPv6 tunnel"));
+		miredo_syslog (LOG_ALERT, _("Miredo setup failure: %s"),
+			       _("Cannot create IPv6 tunnel"));
 		return -1;
 	}
 
 	if (miredo_init ())
-		syslog (LOG_ALERT, _("Miredo setup failure: %s"),
-		        _("libteredo cannot be initialized"));
+		miredo_syslog (LOG_ALERT, _("Miredo setup failure: %s"),
+			       _("libteredo cannot be initialized"));
 	else
 	{
 		if (drop_privileges () == 0)
 		{
+			teredo_init_log (miredo_vsyslog);
 			teredo_tunnel *relay = teredo_create (bind_ip, bind_port);
 			if (relay != NULL)
 			{
@@ -615,8 +615,8 @@ relay_run (miredo_conf *conf, const char *server_name)
 			}
 
 			if (retval)
-				syslog (LOG_ALERT, _("Miredo setup failure: %s"),
-				        _("libteredo cannot be initialized"));
+				miredo_syslog (LOG_ALERT, _("Miredo setup failure: %s"),
+					       _("libteredo cannot be initialized"));
 		}
 		miredo_deinit ();
 	}

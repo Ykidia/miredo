@@ -403,3 +403,29 @@ void teredo_close (int fd)
 {
 	(void)close (fd);
 }
+
+
+void (*teredo_vsyslog_fn)(const int priority, const char *format, va_list) = NULL;
+
+void teredo_init_log (void (*vsyslog_fn)(const int priority, const char *format, va_list))
+{
+	teredo_vsyslog_fn = vsyslog_fn;
+}
+
+void teredo_syslog(const int priority, const char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+
+	teredo_vsyslog (priority, format, args);
+
+	va_end(args);
+}
+
+void teredo_vsyslog(const int priority, const char *format, va_list args)
+{
+	if (teredo_vsyslog_fn == NULL)
+		vsyslog (priority, format, args);
+	else
+		teredo_vsyslog_fn (priority, format, args);
+}

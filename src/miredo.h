@@ -31,6 +31,8 @@
 #  define LIBTEREDO_NORETURN
 # endif
 
+# include <syslog.h>
+
 typedef struct miredo_conf miredo_conf;
 
 int miredo_main (int argc, char *argv[]);
@@ -39,6 +41,9 @@ int miredo (const char *conffile, const char *server_name, int pidfd);
 int drop_privileges (void);
 
 extern int (*miredo_run) (miredo_conf *conf, const char *server);
+
+void miredo_syslog(const int priority, const char *format, ...);
+void miredo_vsyslog(const int priority, const char *format, va_list args);
 
 # include <sys/types.h> // uid_t
 
