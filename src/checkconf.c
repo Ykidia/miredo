@@ -59,6 +59,8 @@ static int miredo_checkconf (miredo_conf *conf)
 	int i, res = 0;
 	if (!miredo_conf_parse_syslog_facility (conf, "SyslogFacility", &i))
 		res = -1;
+	if (!miredo_conf_parse_syslog_level(conf, "SyslogLevel", &i))
+		res = -1;
 
 	bool client = true;
 
